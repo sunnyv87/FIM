@@ -6,9 +6,6 @@ Usage: python run.py [--host HOST] [--port PORT]
 import argparse
 import os
 
-import eventlet
-eventlet.monkey_patch()
-
 from fim_engine import init_db
 from app import app, socketio, monitor
 
@@ -31,7 +28,7 @@ def main():
     print(f"  Dashboard → http://{args.host}:{args.port}")
     print(f"  Press Ctrl+C to stop.\n")
 
-    socketio.run(app, host=args.host, port=args.port, debug=args.debug)
+    socketio.run(app, host=args.host, port=args.port, debug=args.debug, allow_unsafe_werkzeug=True)
 
 
 if __name__ == "__main__":

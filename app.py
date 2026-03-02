@@ -6,9 +6,6 @@ Flask + Flask-SocketIO backend serving the real-time dashboard.
 import os
 import threading
 
-import eventlet
-eventlet.monkey_patch()
-
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -33,7 +30,7 @@ from fim_engine import (
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fim-secret-key-change-in-prod")
 CORS(app)
-socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 
 # Global monitor instance
 _monitor_lock = threading.Lock()
