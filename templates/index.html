@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIM — File Integrity Monitor</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <!-- Socket.IO CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>FIM</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="#" class="nav-item" data-tab="events">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        Events
+        <span class="badge" id="nav-event-badge">0</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="baseline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Baseline
+      </a>
+      <a href="#" class="nav-item" data-tab="paths">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        Watch Paths
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="monitor-status" id="monitor-status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-label">Stopped</span>
+      </div>
+      <div class="monitor-controls">
+        <button class="btn btn-success btn-sm" id="btn-start">Start</button>
+        <button class="btn btn-danger btn-sm" id="btn-stop">Stop</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+  <main class="main-content">
+    <!-- ─── HEADER ─── -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="page-title">Dashboard</h1>
+        <span class="live-badge" id="live-indicator">
+          <span class="pulse"></span> LIVE
+        </span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-outline btn-sm" id="btn-rescan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Rescan
+        </button>
+        <button class="btn btn-outline btn-sm" id="btn-clear-events">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+          Clear Events
+        </button>
+      </div>
+    </header>
+
+    <!-- ─── TOAST NOTIFICATIONS ─── -->
+    <div id="toast-container"></div>
+
+    <!-- ════════════════ TAB: DASHBOARD ════════════════ -->
+    <section class="tab-panel active" id="tab-dashboard">
+
+      <!-- Stat Cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Monitored Files</p>
+            <h2 class="stat-value" id="stat-baseline">—</h2>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Total Events</p>
+            <h2 class="stat-value" id="stat-total">—</h2>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Critical Alerts</p>
+            <h2 class="stat-value" id="stat-critical">—</h2>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">Events Today</p>
+            <h2 class="stat-value" id="stat-today">—</h2>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Events Feed -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Activity</h3>
+          <span class="card-badge" id="recent-count">0 events</span>
+        </div>
+        <div class="event-feed" id="recent-feed">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <p>No events yet. Start monitoring to detect changes.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Chart -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>Event Severity Breakdown</h3>
+        </div>
+        <div class="chart-area" id="chart-area">
+          <div class="donut-wrap">
+            <svg class="donut-chart" viewBox="0 0 200 200" id="donut-svg">
+              <circle class="donut-bg" cx="100" cy="100" r="70"/>
+              <circle class="donut-critical" cx="100" cy="100" r="70"
+                      stroke-dasharray="0 440" stroke-dashoffset="110"
+                      id="donut-critical"/>
+              <circle class="donut-warning" cx="100" cy="100" r="70"
+                      stroke-dasharray="0 440" stroke-dashoffset="110"
+                      id="donut-warning"/>
+              <text x="100" y="95" class="donut-center-value" id="donut-total-text">0</text>
+              <text x="100" y="115" class="donut-center-label">events</text>
+            </svg>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item">
+              <span class="legend-dot legend-dot--critical"></span>
+              <span>Critical</span>
+              <strong id="legend-critical">0</strong>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot legend-dot--warning"></span>
+              <span>Warning</span>
+              <strong id="legend-warning">0</strong>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot legend-dot--info"></span>
+              <span>Info</span>
+              <strong id="legend-info">0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ════════════════ TAB: EVENTS ════════════════ -->
+    <section class="tab-panel" id="tab-events">
+      <div class="card full-card">
+        <div class="card-header">
+          <h3>All Events</h3>
+          <div class="filter-row">
+            <select id="filter-severity" class="filter-select">
+              <option value="">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="warning">Warning</option>
+              <option value="info">Info</option>
+            </select>
+            <select id="filter-type" class="filter-select">
+              <option value="">All Types</option>
+              <option value="modified">Modified</option>
+              <option value="created">Created</option>
+              <option value="deleted">Deleted</option>
+              <option value="moved">Moved</option>
+            </select>
+            <input type="text" id="filter-search" class="filter-input" placeholder="Search path…"/>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="events-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Path</th>
+                <th>Old Hash</th>
+                <th>New Hash</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody">
+              <tr><td colspan="6" class="table-empty">No events recorded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ TAB: BASELINE ════════════════ -->
+    <section class="tab-panel" id="tab-baseline">
+      <div class="card full-card">
+        <div class="card-header">
+          <h3>File Baseline</h3>
+          <div class="filter-row">
+            <input type="text" id="baseline-search" class="filter-input" placeholder="Search path…"/>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="baseline-table">
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>SHA-256 Hash</th>
+                <th>Size</th>
+                <th>Last Modified</th>
+                <th>Recorded At</th>
+              </tr>
+            </thead>
+            <tbody id="baseline-tbody">
+              <tr><td colspan="5" class="table-empty">No baseline data. Add a watch path and start monitoring.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════ TAB: WATCH PATHS ════════════════ -->
+    <section class="tab-panel" id="tab-paths">
+      <div class="card">
+        <div class="card-header">
+          <h3>Add Watch Path</h3>
+        </div>
+        <form class="add-path-form" id="add-path-form">
+          <div class="form-row">
+            <input type="text" id="path-input" class="form-input" placeholder="/path/to/monitor" required />
+            <label class="checkbox-label">
+              <input type="checkbox" id="path-recursive" checked />
+              Recursive
+            </label>
+            <button type="submit" class="btn btn-primary">Add Path</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card full-card">
+        <div class="card-header">
+          <h3>Active Watch Paths</h3>
+        </div>
+        <div id="paths-list" class="paths-list">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <p>No watch paths configured.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
